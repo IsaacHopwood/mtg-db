@@ -10,9 +10,11 @@ This project builds a local SQLite database of Magic: The Gathering cards using 
    cd mtg-db
 
 2. Create a virtual environment:
+   ```bash
     python -m venv .venv
     source .venv/bin/activate   # macOS/Linux
     .venv\Scripts\Activate      # Windows
 
-3. Install dependencies:   
+3. Install dependencies:
+   ```bash
     pip install -r requirements.txt
