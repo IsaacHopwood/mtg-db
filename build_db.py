@@ -24,35 +24,20 @@ cur = conn.cursor()
 cur.execute("DROP TABLE IF EXISTS cards")
 
 cur.execute("""
-CREATE TABLE cards (
+CREATE TABLE cards_raw (
     id TEXT PRIMARY KEY,
-    name TEXT,
-    mana_cost TEXT,
-    type_line TEXT,
-    oracle_text TEXT,
-    set_code TEXT,
-    rarity TEXT,
-    colors TEXT,
-    image_uri TEXT
+    json TEXT
 )
 """)
 
-# Step 3: Insert data
+# Step 3: Insert raw JSON data
 for card in cards_json:
     cur.execute("""
-    INSERT OR IGNORE INTO cards
-        (id, name, mana_cost, type_line, oracle_text, set_code, rarity, colors, image_uri)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO cards_raw (id, json)
+    VALUES (?, ?)
     """, (
         card["id"],
-        card["name"],
-        card.get("mana_cost"),
-        card.get("type_line"),
-        card.get("oracle_text"),
-        card["set"],
-        card["rarity"],
-        json.dumps(card.get("colors")),
-        card["image_uris"]["normal"] if "image_uris" in card else None
+        json.dumps(card)   # convert the whole card dict to a JSON string
     ))
 
 conn.commit()
