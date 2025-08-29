@@ -1,4 +1,4 @@
--- Active: 1756438169117@@127.0.0.1@3306
+CREATE TABLE cards AS
 SELECT
     json -> 'object' AS object_type,
     json -> 'id' AS card_id,
