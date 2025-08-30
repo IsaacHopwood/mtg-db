@@ -15,23 +15,42 @@ def fetch_moxfield_deck(deck_id: str):
         print(f"Error {response.status_code}: {response.text}")
         return None
 
+def fetch_user_decks(username: str):
+    url = f"https://api2.moxfield.com/v2/users/{username}/decks"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        return response.json().get("data", [])
+    else:
+        print(f"Error {response.status_code}: {response.text}")
+        return []
+
+def save_deck(deck_id: str, username: str, deck_data: dict):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS moxfield_raw (
+            deck_id TEXT PRIMARY KEY,
+            username TEXT,
+            data JSON
+        )
+    """)
+    c.execute("""
+        INSERT OR REPLACE INTO moxfield_raw (deck_id, username, data) VALUES (?, ?, ?)
+    """, (deck_id, username, json.dumps(deck_data)))
+    conn.commit()
+    conn.close()
+    print(f"Deck {deck_id} (user {username}) saved to database.")
 
 if __name__ == "__main__":
-    deck_id = "2xb7x1fUa067oaAJxajLmg"
-    deck_data = fetch_moxfield_deck(deck_id)
+    username = "RIHTZ"
 
-    if deck_data:
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS moxfield_raw (
-                deck_id TEXT PRIMARY KEY,
-                data JSON
-            )
-        """)
-        c.execute("""
-            INSERT OR REPLACE INTO moxfield_raw (deck_id, data) VALUES (?, ?)
-        """, (deck_id, json.dumps(deck_data)))
-        conn.commit()
-        conn.close()
-        print(f"Deck {deck_id} saved to database.")
+    decks = fetch_user_decks(username)
+    print(f"Found {len(decks)} decks for user {username}")
+
+    for deck in decks:
+        deck_id = deck["publicId"]   # deck id key from the API response
+        deck_data = fetch_moxfield_deck(deck_id)
+        if deck_data:
+            save_deck(deck_id, username, deck_data)
