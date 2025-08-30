@@ -16,15 +16,26 @@ def fetch_moxfield_deck(deck_id: str):
         return None
 
 def fetch_user_decks(username: str):
-    url = f"https://api2.moxfield.com/v2/users/{username}/decks"
     headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(url, headers=headers)
+    all_decks = []
+    page = 1
+    while True:
+        url = f"https://api2.moxfield.com/v2/users/{username}/decks?page={page}"
+        response = requests.get(url, headers=headers)
 
-    if response.status_code == 200:
-        return response.json().get("data", [])
-    else:
-        print(f"Error {response.status_code}: {response.text}")
-        return []
+        if response.status_code != 200:
+            print(f"Error {response.status_code}: {response.text}")
+            break
+
+        data = response.json()
+        decks = data.get("data", [])
+        if not decks:
+            break
+
+        all_decks.extend(decks)
+        page += 1
+
+    return all_decks
 
 def save_deck(deck_id: str, username: str, deck_data: dict):
     conn = sqlite3.connect(DB_PATH)
@@ -44,13 +55,15 @@ def save_deck(deck_id: str, username: str, deck_data: dict):
     print(f"Deck {deck_id} (user {username}) saved to database.")
 
 if __name__ == "__main__":
-    username = "RIHTZ"
+    usernames = ["RIHTZ", "lasagna_man", "noahbfreeman", "k_khangg", "Flynnagin", "TROLLIGANS", "AsianBoi01"]  # list of usernames
 
-    decks = fetch_user_decks(username)
-    print(f"Found {len(decks)} decks for user {username}")
+    for username in usernames:
+        print(f"Fetching decks for user {username}...")
+        decks = fetch_user_decks(username)
+        print(f"Found {len(decks)} decks for user {username}")
 
-    for deck in decks:
-        deck_id = deck["publicId"]   # deck id key from the API response
-        deck_data = fetch_moxfield_deck(deck_id)
-        if deck_data:
-            save_deck(deck_id, username, deck_data)
+        for deck in decks:
+            deck_id = deck["publicId"]
+            deck_data = fetch_moxfield_deck(deck_id)
+            if deck_data:
+                save_deck(deck_id, username, deck_data)
