@@ -1,6 +1,7 @@
 import requests
 import json
 import sqlite3
+import time
 
 DB_PATH = "mtg.db"  # adjust path if needed
 
@@ -20,8 +21,9 @@ def fetch_user_decks(username: str):
     all_decks = []
     page = 1
     while True:
+        print(f"Fetching page {page} for user {username}...")
         url = f"https://api2.moxfield.com/v2/users/{username}/decks?page={page}"
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=10)
 
         if response.status_code != 200:
             print(f"Error {response.status_code}: {response.text}")
@@ -34,6 +36,7 @@ def fetch_user_decks(username: str):
 
         all_decks.extend(decks)
         page += 1
+        time.sleep(0.5)
 
     return all_decks
 
@@ -55,7 +58,7 @@ def save_deck(deck_id: str, username: str, deck_data: dict):
     print(f"Deck {deck_id} (user {username}) saved to database.")
 
 if __name__ == "__main__":
-    usernames = ["RIHTZ", "lasagna_man", "noahbfreeman", "k_khangg", "Flynnagin", "TROLLIGANS", "AsianBoi01"]  # list of usernames
+    usernames = ["RIHTZ", "lasagna_man", "noahbfreeman", "k_khangg", "Flynnagin", "TROLLIGANS", "AsianBoi01", "Sethalopod"]  # list of usernames
 
     for username in usernames:
         print(f"Fetching decks for user {username}...")
