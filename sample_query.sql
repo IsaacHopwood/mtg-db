@@ -1,1 +1,1 @@
-SELECT * FROM moxfield_raw;
+SELECT * FROM precons;
