@@ -1,11 +1,11 @@
 # 🃏 MTG Database Explorer
 
-A comprehensive Magic: The Gathering card database with a beautiful Streamlit web interface. This project builds a local SQLite database using the [Scryfall API](https://scryfall.com/docs/api) and provides an interactive web app for exploring MTG cards.
+A comprehensive Magic: The Gathering card database with a Streamlit web interface. This project builds a local SQLite database using the [Scryfall API](https://scryfall.com/docs/api) and provides an interactive web app for exploring MTG cards.
 
 ## ✨ Features
 
 - **🗄️ Dual Database Structure**: Raw JSON storage + structured tables for optimal performance
-- **🌐 Streamlit Web Interface**: Beautiful, interactive web app with multiple tabs
+- **🌐 Streamlit Web Interface**: Interactive web app with multiple tabs
 - **🔍 Advanced Search**: Search by name, type, oracle text, or set
 - **📝 Custom SQL Queries**: Write and execute your own SQL queries
 - **🗄️ Database Explorer**: Dynamic table/column browser with data types

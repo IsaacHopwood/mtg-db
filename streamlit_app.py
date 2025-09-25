@@ -336,114 +336,279 @@ LIMIT 20;
         schema_info = get_table_schema()
         
         if schema_info:
-            # Table selector
-            selected_table = st.selectbox(
-                "Select a table to explore:",
-                options=list(schema_info.keys()),
-                format_func=lambda x: f"{x} ({schema_info[x]['row_count']:,} rows)"
-            )
+            # Create two columns for better layout
+            col_left, col_right = st.columns([1, 2])
             
-            if selected_table:
-                table_info = schema_info[selected_table]
+            with col_left:
+                st.subheader("📊 Database Overview")
                 
-                # Display table information
-                col1, col2, col3 = st.columns(3)
-                with col1:
+                # Table selector
+                selected_table = st.selectbox(
+                    "Select a table to explore:",
+                    options=list(schema_info.keys()),
+                    format_func=lambda x: f"{x} ({schema_info[x]['row_count']:,} rows)"
+                )
+                
+                if selected_table:
+                    table_info = schema_info[selected_table]
+                    
+                    # Display table information
                     st.metric("Table Name", selected_table)
-                with col2:
                     st.metric("Total Rows", f"{table_info['row_count']:,}")
-                with col3:
                     st.metric("Total Columns", len(table_info['columns']))
-                
-                st.divider()
-                
-                # Column information
-                st.subheader("📋 Column Information")
-                
-                if table_info['columns']:
-                    # Create a DataFrame for better display
-                    columns_df = pd.DataFrame(table_info['columns'], 
-                                            columns=['Column ID', 'Column Name', 'Data Type', 'Not Null', 'Default Value', 'Primary Key'])
                     
-                    # Format the DataFrame
-                    columns_df['Data Type'] = columns_df['Data Type'].replace('', 'TEXT')
-                    columns_df['Not Null'] = columns_df['Not Null'].map({0: 'No', 1: 'Yes'})
-                    columns_df['Primary Key'] = columns_df['Primary Key'].map({0: 'No', 1: 'Yes'})
-                    columns_df['Default Value'] = columns_df['Default Value'].fillna('None')
+                    st.divider()
                     
-                    st.dataframe(columns_df, use_container_width=True)
+                    # Column selector
+                    st.subheader("📋 Column Explorer")
                     
-                    # Column details in expandable sections
-                    with st.expander("🔍 Detailed Column Information"):
-                        for col in table_info['columns']:
-                            col_id, col_name, data_type, not_null, default_val, primary_key = col
-                            
-                            # Format data type
-                            if not data_type:
-                                data_type = "TEXT"
-                            
-                            st.markdown(f"**{col_name}**")
-                            st.markdown(f"- **Type:** `{data_type}`")
-                            st.markdown(f"- **Primary Key:** {'Yes' if primary_key else 'No'}")
-                            st.markdown(f"- **Not Null:** {'Yes' if not_null else 'No'}")
-                            st.markdown(f"- **Default:** `{default_val if default_val else 'None'}`")
-                            st.markdown("---")
-                else:
-                    st.info("No column information available.")
-                
-                st.divider()
-                
-                # Sample data
-                st.subheader("📄 Sample Data (First 3 Rows)")
-                
-                if table_info['sample_data']:
-                    # Get column names for the sample data
-                    column_names = [col[1] for col in table_info['columns']]
-                    
-                    # Create DataFrame for sample data
-                    sample_df = pd.DataFrame(table_info['sample_data'], columns=column_names)
-                    
-                    # Display sample data
-                    st.dataframe(sample_df, use_container_width=True)
-                    
-                    # Show raw data in expandable section
-                    with st.expander("🔍 Raw Sample Data"):
-                        for i, row in enumerate(table_info['sample_data']):
-                            st.markdown(f"**Row {i+1}:**")
-                            st.code(str(row))
-                            st.markdown("---")
-                else:
-                    st.info("No sample data available.")
-                
-                st.divider()
-                
-                # Quick query generator
-                st.subheader("⚡ Quick Query Generator")
-                
-                col1, col2 = st.columns([3, 1])
-                
-                with col1:
-                    # Generate a basic SELECT query
-                    basic_query = f"SELECT * FROM {selected_table} LIMIT 10;"
-                    st.code(basic_query, language='sql')
-                
-                with col2:
-                    if st.button("Copy Query"):
-                        st.code(basic_query, language='sql')
-                        st.success("Query copied!")
-                
-                # Advanced query options
-                with st.expander("🔧 Advanced Query Options"):
-                    st.markdown("**Count all rows:**")
-                    st.code(f"SELECT COUNT(*) FROM {selected_table};", language='sql')
-                    
-                    st.markdown("**Get distinct values from a column:**")
                     if table_info['columns']:
-                        first_col = table_info['columns'][0][1]  # Get first column name
-                        st.code(f"SELECT DISTINCT {first_col} FROM {selected_table} LIMIT 20;", language='sql')
+                        # Create column dropdown
+                        column_names = [col[1] for col in table_info['columns']]
+                        selected_column = st.selectbox(
+                            "Select a column to explore:",
+                            options=column_names,
+                            help="Choose a column to see detailed information and sample data"
+                        )
+                        
+                        if selected_column:
+                            # Find the selected column info
+                            selected_col_info = None
+                            for col in table_info['columns']:
+                                if col[1] == selected_column:
+                                    selected_col_info = col
+                                    break
+                            
+                            if selected_col_info:
+                                col_id, col_name, data_type, not_null, default_val, primary_key = selected_col_info
+                                
+                                # Format data type
+                                if not data_type:
+                                    data_type = "TEXT"
+                                
+                                st.markdown(f"**Column: `{col_name}`**")
+                                st.markdown(f"- **Type:** `{data_type}`")
+                                st.markdown(f"- **Primary Key:** {'Yes' if primary_key else 'No'}")
+                                st.markdown(f"- **Not Null:** {'Yes' if not_null else 'No'}")
+                                st.markdown(f"- **Default:** `{default_val if default_val else 'None'}`")
+                                
+                                # Get sample values for this column
+                                try:
+                                    conn = sqlite3.connect(DB_PATH)
+                                    cur = conn.cursor()
+                                    
+                                    # Get distinct values
+                                    cur.execute(f"SELECT DISTINCT {col_name} FROM {selected_table} WHERE {col_name} IS NOT NULL LIMIT 10")
+                                    distinct_values = [row[0] for row in cur.fetchall()]
+                                    
+                                    # Get value count
+                                    cur.execute(f"SELECT COUNT(DISTINCT {col_name}) FROM {selected_table}")
+                                    distinct_count = cur.fetchone()[0]
+                                    
+                                    # Get null count
+                                    cur.execute(f"SELECT COUNT(*) FROM {selected_table} WHERE {col_name} IS NULL")
+                                    null_count = cur.fetchone()[0]
+                                    
+                                    conn.close()
+                                    
+                                    st.markdown(f"- **Distinct Values:** {distinct_count:,}")
+                                    st.markdown(f"- **Null Values:** {null_count:,}")
+                                    
+                                    if distinct_values:
+                                        st.markdown("**Sample Values:**")
+                                        for value in distinct_values[:5]:
+                                            st.code(str(value)[:100] + ("..." if len(str(value)) > 100 else ""))
+                                        
+                                        if len(distinct_values) > 5:
+                                            st.markdown(f"... and {len(distinct_values) - 5} more")
+                                    
+                                except Exception as e:
+                                    st.error(f"Error getting column details: {e}")
+                            
+                            st.divider()
+                            
+                            # Column-specific queries
+                            st.subheader("🔍 Column Queries")
+                            
+                            # Count values
+                            if st.button(f"Count {selected_column} values", key=f"count_{selected_column}_{selected_table}"):
+                                try:
+                                    conn = sqlite3.connect(DB_PATH)
+                                    cur = conn.cursor()
+                                    cur.execute(f"SELECT {selected_column}, COUNT(*) as count FROM {selected_table} GROUP BY {selected_column} ORDER BY count DESC LIMIT 20")
+                                    results = cur.fetchall()
+                                    conn.close()
+                                    
+                                    if results:
+                                        df = pd.DataFrame(results, columns=[selected_column, 'Count'])
+                                        st.dataframe(df, use_container_width=True)
+                                    else:
+                                        st.info("No data found")
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+                            
+                            # Get distinct values
+                            if st.button(f"Get distinct {selected_column} values", key=f"distinct_{selected_column}_{selected_table}"):
+                                try:
+                                    conn = sqlite3.connect(DB_PATH)
+                                    cur = conn.cursor()
+                                    cur.execute(f"SELECT DISTINCT {selected_column} FROM {selected_table} WHERE {selected_column} IS NOT NULL ORDER BY {selected_column} LIMIT 50")
+                                    results = [row[0] for row in cur.fetchall()]
+                                    conn.close()
+                                    
+                                    if results:
+                                        st.write("**Distinct Values:**")
+                                        for value in results:
+                                            st.code(str(value))
+                                    else:
+                                        st.info("No distinct values found")
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+            
+            with col_right:
+                if selected_table:
+                    table_info = schema_info[selected_table]
                     
-                    st.markdown("**Get table structure:**")
-                    st.code(f"PRAGMA table_info({selected_table});", language='sql')
+                    st.subheader(f"📄 {selected_table} - Sample Data")
+                    
+                    # Sample data with column selection
+                    if table_info['sample_data']:
+                        column_names = [col[1] for col in table_info['columns']]
+                        
+                        # Column selection for display
+                        selected_columns = st.multiselect(
+                            "Select columns to display:",
+                            options=column_names,
+                            default=column_names[:10] if len(column_names) > 10 else column_names,
+                            help="Choose which columns to show in the sample data"
+                        )
+                        
+                        if selected_columns:
+                            try:
+                                conn = sqlite3.connect(DB_PATH)
+                                cur = conn.cursor()
+                                
+                                # Build query with selected columns
+                                columns_str = ", ".join(selected_columns)
+                                cur.execute(f"SELECT {columns_str} FROM {selected_table} LIMIT 20")
+                                sample_data = cur.fetchall()
+                                conn.close()
+                                
+                                if sample_data:
+                                    sample_df = pd.DataFrame(sample_data, columns=selected_columns)
+                                    st.dataframe(sample_df, use_container_width=True)
+                                    
+                                    # Show raw data
+                                    with st.expander("🔍 Raw Sample Data"):
+                                        for i, row in enumerate(sample_data):
+                                            st.markdown(f"**Row {i+1}:**")
+                                            st.code(str(row))
+                                            st.markdown("---")
+                                else:
+                                    st.info("No sample data available for selected columns")
+                            except Exception as e:
+                                st.error(f"Error displaying sample data: {e}")
+                        else:
+                            st.info("Please select at least one column to display")
+                    else:
+                        st.info("No sample data available")
+                    
+                    st.divider()
+                    
+                    # Advanced table queries
+                    st.subheader("⚡ Table Query Generator")
+                    
+                    # Query type selector
+                    query_type = st.selectbox(
+                        "Query Type:",
+                        ["Basic SELECT", "COUNT", "DISTINCT", "GROUP BY", "Custom"]
+                    )
+                    
+                    if query_type == "Basic SELECT":
+                        limit = st.slider("Number of rows:", 1, 100, 10, key=f"basic_limit_{selected_table}")
+                        basic_query = f"SELECT * FROM {selected_table} LIMIT {limit};"
+                        st.code(basic_query, language='sql')
+                        
+                        if st.button("Execute Query", key=f"execute_basic_{selected_table}"):
+                            try:
+                                conn = sqlite3.connect(DB_PATH)
+                                df = pd.read_sql_query(basic_query, conn)
+                                conn.close()
+                                st.dataframe(df, use_container_width=True)
+                            except Exception as e:
+                                st.error(f"Error: {e}")
+                    
+                    elif query_type == "COUNT":
+                        count_query = f"SELECT COUNT(*) as total_rows FROM {selected_table};"
+                        st.code(count_query, language='sql')
+                        
+                        if st.button("Execute Count", key=f"execute_count_{selected_table}"):
+                            try:
+                                conn = sqlite3.connect(DB_PATH)
+                                result = pd.read_sql_query(count_query, conn)
+                                conn.close()
+                                st.metric("Total Rows", result['total_rows'].iloc[0])
+                            except Exception as e:
+                                st.error(f"Error: {e}")
+                    
+                    elif query_type == "DISTINCT":
+                        if table_info['columns']:
+                            col_for_distinct = st.selectbox(
+                                "Column for DISTINCT:",
+                                options=[col[1] for col in table_info['columns']],
+                                key=f"distinct_col_{selected_table}"
+                            )
+                            limit = st.slider("Number of distinct values:", 1, 100, 20, key=f"distinct_limit_{selected_table}")
+                            distinct_query = f"SELECT DISTINCT {col_for_distinct} FROM {selected_table} LIMIT {limit};"
+                            st.code(distinct_query, language='sql')
+                            
+                            if st.button("Execute DISTINCT", key=f"execute_distinct_{selected_table}"):
+                                try:
+                                    conn = sqlite3.connect(DB_PATH)
+                                    df = pd.read_sql_query(distinct_query, conn)
+                                    conn.close()
+                                    st.dataframe(df, use_container_width=True)
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+                    
+                    elif query_type == "GROUP BY":
+                        if table_info['columns']:
+                            group_col = st.selectbox(
+                                "Group by column:",
+                                options=[col[1] for col in table_info['columns']],
+                                key=f"group_col_{selected_table}"
+                            )
+                            group_query = f"SELECT {group_col}, COUNT(*) as count FROM {selected_table} GROUP BY {group_col} ORDER BY count DESC LIMIT 20;"
+                            st.code(group_query, language='sql')
+                            
+                            if st.button("Execute GROUP BY", key=f"execute_group_{selected_table}"):
+                                try:
+                                    conn = sqlite3.connect(DB_PATH)
+                                    df = pd.read_sql_query(group_query, conn)
+                                    conn.close()
+                                    st.dataframe(df, use_container_width=True)
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+                    
+                    elif query_type == "Custom":
+                        custom_query = st.text_area(
+                            "Enter custom SQL query:",
+                            value=f"SELECT * FROM {selected_table} LIMIT 10;",
+                            height=100,
+                            key=f"custom_query_{selected_table}"
+                        )
+                        
+                        if st.button("Execute Custom Query", key=f"execute_custom_{selected_table}"):
+                            if custom_query.strip():
+                                try:
+                                    conn = sqlite3.connect(DB_PATH)
+                                    df = pd.read_sql_query(custom_query, conn)
+                                    conn.close()
+                                    st.dataframe(df, use_container_width=True)
+                                except Exception as e:
+                                    st.error(f"Query error: {e}")
+                            else:
+                                st.warning("Please enter a query")
         else:
             st.warning("No database schema information available. Please refresh the database.")
     
